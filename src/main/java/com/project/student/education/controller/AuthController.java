@@ -1,0 +1,57 @@
+package com.project.student.education.controller;
+
+import com.project.student.education.DTO.LoginRequestDto;
+import com.project.student.education.DTO.SignupRequestDto;
+import com.project.student.education.DTO.TokenPair;
+import com.project.student.education.service.AuthService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/auth")
+@RequiredArgsConstructor
+public class AuthController {
+
+    private final AuthService authService;
+
+    @PostMapping("/signup")
+    public ResponseEntity<?> signup(@RequestBody SignupRequestDto request) {
+        authService.signup(request);
+        return ResponseEntity.ok(Map.of("message", "User registered successfully"));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDto request) {
+        TokenPair tokenPair = authService.login(request);
+        return ResponseEntity.ok(Map.of(
+                "accessToken", tokenPair.getAccessToken(),
+                "refreshToken", tokenPair.getRefreshToken()
+        ));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout() {
+        return ResponseEntity.ok(Map.of("message", "User logged out successfully"));
+    }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
+        String refreshToken = request.get("refreshToken");
+
+        if (refreshToken == null || refreshToken.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Missing refresh token"));
+        }
+
+        TokenPair newTokens = authService.refreshToken(refreshToken);
+
+        return ResponseEntity.ok(Map.of(
+                "accessToken", newTokens.getAccessToken(),
+                "refreshToken", newTokens.getRefreshToken()
+        ));
+    }
+}
