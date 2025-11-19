@@ -1,6 +1,7 @@
 package com.project.student.education.controller;
 
 
+import com.project.student.education.DTO.CreateTimetableRequest;
 import com.project.student.education.DTO.StudentTimetableResponse;
 import com.project.student.education.service.StudentService;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,13 @@ public class TimeTableController {
                 studentService.getStudentTimetable(studentId);
 
         return ResponseEntity.ok(response);
+    }
+    @PostMapping("/create/timetable")
+    public ResponseEntity<String> createTimetable(
+            @RequestBody CreateTimetableRequest request
+    ) {
+        studentService.createWeeklyTimetable(request);
+        return ResponseEntity.ok("Timetable created successfully!");
     }
 
 }

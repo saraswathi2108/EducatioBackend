@@ -29,6 +29,9 @@ public class StudentService {
     @Autowired
     private IdGenerator idGenerator;
 
+    @Autowired
+    private TeacherRepository teacherRepository;
+
 
     @Autowired
     private TimetableRepository timetableRepository;
@@ -201,7 +204,8 @@ public class StudentService {
 
         ClassSection cs = student.getClassSection();
 
-        String today = LocalDate.now().getDayOfWeek().name();
+        String today = LocalDate.now().getDayOfWeek().name().substring(0, 3);
+
 
         List<Timetable> todayList =
                 timetableRepository.findByClassSection_ClassSectionIdAndDay(
@@ -306,4 +310,61 @@ public class StudentService {
 
         return new ArrayList<>(map.values());
     }
+
+    public void createWeeklyTimetable(CreateTimetableRequest request) {
+
+        ClassSection classSection = classSectionRepository.findById(request.getClassSectionId())
+                .orElseThrow(() -> new RuntimeException("Invalid class section"));
+
+        for (CreateTimetableRequest.PeriodRequest p : request.getPeriods()) {
+
+            Subject subject = subjectRepository.findById(p.getSubjectId())
+                    .orElseThrow(() -> new RuntimeException("Invalid subject"));
+
+            Teacher teacher = teacherRepository.findById(p.getTeacherId())
+                    .orElseThrow(() -> new RuntimeException("Invalid teacher"));
+
+            boolean classHasConflict =
+                    timetableRepository.existsByClassSection_ClassSectionIdAndDayAndStartTimeAndEndTime(
+                            request.getClassSectionId(),
+                            p.getDay(),
+                            p.getStartTime(),
+                            p.getEndTime()
+                    );
+
+            if (classHasConflict) {
+                throw new RuntimeException(
+                        "Class already has a period at " + p.getDay() + " " + p.getStartTime()
+                );
+            }
+
+            boolean teacherBusy =
+                    timetableRepository.existsByTeacher_TeacherIdAndDayAndStartTimeAndEndTime(
+                            p.getTeacherId(),
+                            p.getDay(),
+                            p.getStartTime(),
+                            p.getEndTime()
+                    );
+
+            if (teacherBusy) {
+                throw new RuntimeException(
+                        "Teacher " + teacher.getTeacherName() +
+                                " is already assigned at " + p.getDay() + " " + p.getStartTime()
+                );
+            }
+
+            Timetable t = Timetable.builder()
+                    .id(idGenerator.generateId("T"))
+                    .classSection(classSection)
+                    .subject(subject)
+                    .teacher(teacher)
+                    .day(p.getDay())
+                    .startTime(p.getStartTime())
+                    .endTime(p.getEndTime())
+                    .build();
+
+            timetableRepository.save(t);
+        }
+    }
+
 }
