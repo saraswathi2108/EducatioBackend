@@ -3,6 +3,8 @@ package com.project.student.education.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.Collection;
+
 @Entity
 @Table(name = "class_subject_mapping",
         uniqueConstraints = @UniqueConstraint(columnNames = {"class_section_id", "subject_id"}))
@@ -27,4 +29,7 @@ public class ClassSubjectMapping {
     @ManyToOne
     @JoinColumn(name = "teacher_id")
     private Teacher teacher;
+
+
+
 }

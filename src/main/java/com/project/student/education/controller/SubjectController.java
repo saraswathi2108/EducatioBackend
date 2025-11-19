@@ -1,6 +1,7 @@
 package com.project.student.education.controller;
 
 
+import com.project.student.education.DTO.AssignSubjectTeacherDTO;
 import com.project.student.education.DTO.ClassSubjectAssignRequest;
 import com.project.student.education.DTO.ClassSubjectMappingDTO;
 import com.project.student.education.DTO.SubjectDTO;
@@ -13,9 +14,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@RequestMapping("api/student")
+@RequestMapping("api/student/subject")
 public class SubjectController {
 
 
@@ -85,6 +87,15 @@ public class SubjectController {
         );
     }
 
+    @PostMapping("/assignSubjectTeacher")
+    public ResponseEntity<?> assignTeacher(@RequestBody AssignSubjectTeacherDTO dto) {
+        return ResponseEntity.ok(Map.of("message", subjectService.assignTeacherToSubject(dto)));
+    }
+
+    @GetMapping("/{classSectionId}")
+    public ResponseEntity<?> getSubjectTeacherMapping(@PathVariable String classSectionId) {
+        return ResponseEntity.ok(subjectService.getMappingForClass(classSectionId));
+    }
 
 
 

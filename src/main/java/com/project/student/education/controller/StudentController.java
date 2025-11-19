@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/student")
@@ -47,5 +48,14 @@ public class StudentController {
         return ResponseEntity.ok(dto);
     }
 
+    @GetMapping("/count")
+    public ResponseEntity<Long> countStudents() {
+        return ResponseEntity.ok(studentService.getStudentCount());
+    }
+
+    @GetMapping("/dashboard/gender-percentage")
+    public ResponseEntity<Map<String, Double>> getGenderPercentage() {
+        return ResponseEntity.ok(studentService.getGenderPercentage());
+    }
 
 }

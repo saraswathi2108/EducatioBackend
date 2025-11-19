@@ -9,6 +9,6 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class UpdateExamStatusRequest {
-    private ExamStatus status;       // e.g. PUBLISHED, SCHEDULED
+    private ExamStatus status;
     private String updatedBy;
 }

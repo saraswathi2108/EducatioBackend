@@ -36,6 +36,12 @@ public class Teacher {
 //    private List<Subject> subjects;
 
 
-    @OneToOne(mappedBy = "classTeacher")
-    private ClassSection assignedSection;
+    @OneToMany(mappedBy = "classTeacher")
+    private List<ClassSection> assignedSection;
+
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "user_id", referencedColumnName = "id")
+    private User user;
+
+
 }

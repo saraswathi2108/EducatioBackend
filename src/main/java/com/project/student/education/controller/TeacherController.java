@@ -1,5 +1,6 @@
 package com.project.student.education.controller;
 
+import com.project.student.education.DTO.ClassSectionMiniDTO;
 import com.project.student.education.DTO.TeacherDTO;
 import com.project.student.education.service.TeacherService;
 import lombok.RequiredArgsConstructor;
@@ -42,4 +43,33 @@ public class TeacherController {
     public ResponseEntity<String> deleteTeacher(@PathVariable String teacherId) {
         return ResponseEntity.ok(teacherService.deleteTeacher(teacherId));
     }
+
+    @PostMapping("/assign/{teacherId}/{classSectionId}")
+    public ResponseEntity<String> assignTeacherToClass(
+            @PathVariable String teacherId,
+            @PathVariable String classSectionId
+    ) {
+        return ResponseEntity.ok(teacherService.assignTeacher(teacherId, classSectionId));
+    }
+
+    @PutMapping("/assign/update/{classSectionId}/{teacherId}")
+    public ResponseEntity<String> updateClassTeacher(
+            @PathVariable String classSectionId,
+            @PathVariable String teacherId) {
+        return ResponseEntity.ok(teacherService.updateClassTeacher(classSectionId, teacherId));
+    }
+
+    @GetMapping("/assigned-classes/{teacherId}")
+    public ResponseEntity<List<ClassSectionMiniDTO>> getClassesHandledByTeacher(
+            @PathVariable String teacherId) {
+        return ResponseEntity.ok(teacherService.getClassesHandledByTeacher(teacherId));
+    }
+
+    @GetMapping("/count")
+    public ResponseEntity<Long> countTeachers() {
+        return ResponseEntity.ok(teacherService.getTeacherCount());
+    }
+
+
+
 }

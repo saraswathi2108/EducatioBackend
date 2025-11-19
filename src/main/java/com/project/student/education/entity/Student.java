@@ -31,11 +31,6 @@ public class Student {
     private String section;
 
 
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "class_section_id", referencedColumnName = "classSectionId")
-    private ClassSection classSection;
-
     private String academicYear;
     private LocalDate joiningDate;
     private String rollNumber;
@@ -74,7 +69,9 @@ public class Student {
     @JoinColumn(name = "user_id", referencedColumnName = "id")
     private User user;
 
-
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "class_section_id", referencedColumnName = "classSectionId")
+    private ClassSection classSection;
 
 
 

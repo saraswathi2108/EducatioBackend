@@ -7,9 +7,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SubjectWiseMarksEntryDTO {
+public class AttendanceEntryDTO {
     private String studentId;
-    private Double marksObtained;
-    private String attendanceStatus;
-    private String remarks;
+    private String status;
 }

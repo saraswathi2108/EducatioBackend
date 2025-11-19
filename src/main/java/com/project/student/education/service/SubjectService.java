@@ -1,5 +1,6 @@
 package com.project.student.education.service;
 
+import com.project.student.education.DTO.AssignSubjectTeacherDTO;
 import com.project.student.education.DTO.ClassSubjectAssignRequest;
 import com.project.student.education.DTO.ClassSubjectMappingDTO;
 import com.project.student.education.DTO.SubjectDTO;
@@ -202,6 +203,58 @@ public class SubjectService {
         return mappings.stream()
                 .map(this::convertToDTO)
                 .toList();
+    }
+
+    public String assignTeacherToSubject(AssignSubjectTeacherDTO dto) {
+
+        // prevent duplicate assignment
+        if (classSubjectMapping.existsByClassSection_ClassSectionIdAndSubject_SubjectId(
+                dto.getClassSectionId(), dto.getSubjectId()
+        )) {
+            throw new RuntimeException("Teacher already assigned for this subject in this class.");
+        }
+
+        ClassSection section = classSectionRepository.findById(dto.getClassSectionId())
+                .orElseThrow(() -> new RuntimeException("Class section not found"));
+
+        Subject subject = subjectRepository.findById(dto.getSubjectId())
+                .orElseThrow(() -> new RuntimeException("Subject not found"));
+
+        Teacher teacher = teacherRepository.findById(dto.getTeacherId())
+                .orElseThrow(() -> new RuntimeException("Teacher not found"));
+
+        ClassSubjectMapping mapping = ClassSubjectMapping.builder()
+                .id(UUID.randomUUID().toString())
+                .classSection(section)
+                .subject(subject)
+                .teacher(teacher)
+                .build();
+
+        classSubjectMapping.save(mapping);
+
+        return subject.getSubjectName() + " assigned to " + teacher.getTeacherName() +
+                " for class " + section.getClassName() + section.getSection();
+    }
+
+    public Map<String, Object> getMappingForClass(String classSectionId) {
+
+        ClassSection section = classSectionRepository.findById(classSectionId)
+                .orElseThrow(() -> new RuntimeException("Class section not found"));
+
+        List<ClassSubjectMapping> mappings =
+                classSubjectMapping.findByClassSection_ClassSectionId(classSectionId);
+
+        List<Map<String, String>> subjectTeacherList = mappings.stream()
+                .map(m -> Map.of(
+                        "subject", m.getSubject().getSubjectName(),
+                        "teacher", m.getTeacher().getTeacherName()
+                ))
+                .toList();
+
+        return Map.of(
+                "classSection", section.getClassName() + section.getSection(),
+                "subjects", subjectTeacherList
+        );
     }
 
 }

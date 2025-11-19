@@ -6,5 +6,6 @@ import lombok.*;
 public class ClassSectionMiniDTO {
     private String classSectionId;
     private String className;         // e.g., "5"
-    private String sectionName;       // e.g., "A"
+    private String sectionName;
+    private String academicYear;// e.g., "A"
 }

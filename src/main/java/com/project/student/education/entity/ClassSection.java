@@ -51,7 +51,10 @@ public class ClassSection {
     private List<Student> students = new ArrayList<>();
 
 
-    @OneToOne
-    @JoinColumn(name = "class_teacher_id", referencedColumnName = "teacherId")
+    @ManyToOne
+    @JoinColumn(name = "class_teacher_id")
     private Teacher classTeacher;
+
+
+
 }

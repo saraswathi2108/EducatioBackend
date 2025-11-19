@@ -17,5 +17,14 @@ public interface StudentRepository extends JpaRepository<Student, String> {
     @Query("SELECT s.studentId FROM Student s WHERE s.classSection.classSectionId = :classSectionId")
     List<String> findStudentIdsByClassSectionId(String classSectionId);
 
+    @Query("SELECT COUNT(s) FROM Student s")
+    Long countStudents();
 
+    @Query("""
+    SELECT s.gender,
+           COUNT(s) * 100.0 / (SELECT COUNT(st) FROM Student st)
+    FROM Student s
+    GROUP BY s.gender
+""")
+    List<Object[]> getGenderPercentage();
 }

@@ -14,9 +14,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,6 +30,7 @@ public class ExamSchedulingService {
     private final StudentRepository studentRepo;
     private final ExamRecordRepository recordRepo;
     private final ClassSubjectMappingRepository classSubjectRepo;
+    private final TeacherRepository teacherRepo;
 
     @Transactional
     public ExamRecordDTO scheduleOne(ExamRecordDTO dto) {
@@ -54,26 +55,50 @@ public class ExamSchedulingService {
     @Transactional
     public List<ExamRecordDTO> scheduleBulk(BulkScheduleRequest req) {
 
+        // 1️⃣ Validate Exam
         if (!examRepo.existsById(req.getExamId()))
-            throw new EntityNotFoundException("Exam not found");
-        if (!classRepo.existsById(req.getClassSectionId()))
-            throw new EntityNotFoundException("Class not found");
-        if (!subjectRepo.existsById(req.getSubjectId()))
-            throw new EntityNotFoundException("Subject not found");
+            throw new EntityNotFoundException("Exam not found: " + req.getExamId());
 
+        // 2️⃣ Validate Class
+        if (!classRepo.existsById(req.getClassSectionId()))
+            throw new EntityNotFoundException("Class not found: " + req.getClassSectionId());
+
+        // 3️⃣ Validate Subject
+        if (!subjectRepo.existsById(req.getSubjectId()))
+            throw new EntityNotFoundException("Subject not found: " + req.getSubjectId());
+
+
+        // 4️⃣ Load Students (Request → or from DB)
         List<String> studentIds = req.getStudentIds();
         if (studentIds == null || studentIds.isEmpty()) {
             studentIds = studentRepo.findStudentIdsByClassSectionId(req.getClassSectionId());
         }
 
-        List<ExamRecordDTO> output = new ArrayList<>();
+        // 5️⃣ If no students in class → ERROR
+        if (studentIds == null || studentIds.isEmpty()) {
+            throw new EntityNotFoundException(
+                    "No students found for class section: " + req.getClassSectionId()
+            );
+        }
 
+
+        List<ExamRecordDTO> output = new ArrayList<>();
+        boolean atLeastOneInserted = false;
+
+
+        // 6️⃣ Create exam record for each student
         for (String studentId : studentIds) {
 
-            if (recordRepo.existsByExamIdAndClassSectionIdAndSubjectIdAndStudentId(
-                    req.getExamId(), req.getClassSectionId(), req.getSubjectId(), studentId)) {
+            boolean alreadyExists = recordRepo.existsByExamIdAndClassSectionIdAndSubjectIdAndStudentId(
+                    req.getExamId(), req.getClassSectionId(), req.getSubjectId(), studentId
+            );
+
+            if (alreadyExists) {
+                // Skip this student
                 continue;
             }
+
+            atLeastOneInserted = true;
 
             ExamRecord record = ExamRecord.builder()
                     .examId(req.getExamId())
@@ -96,16 +121,63 @@ public class ExamSchedulingService {
             output.add(mapper.map(saved, ExamRecordDTO.class));
         }
 
+        if (!atLeastOneInserted) {
+            throw new IllegalStateException(
+                    "Exam schedule already exists for ALL students of this class for subject: "
+                            + req.getSubjectId()
+            );
+        }
+
         return output;
     }
 
 
-    public List<ExamRecordDTO> getTimetable(String examId, String classSectionId) {
-        return recordRepo.findByExamIdAndClassSectionId(examId, classSectionId)
-                .stream()
-                .map(r -> mapper.map(r, ExamRecordDTO.class))
-                .collect(Collectors.toList());
+
+    @Transactional(readOnly = true)
+    public List<TimetableDayDTO> getTimetable(String examId, String classSectionId) {
+
+        List<ExamRecord> records = recordRepo.findByExamIdAndClassSectionId(examId, classSectionId);
+        Map<LocalDate, TimetableDayDTO> grouped = new LinkedHashMap<>();
+
+        for (ExamRecord r : records) {
+            LocalDate date = r.getExamDate();
+            if (date == null) {
+                continue;
+            }
+
+            grouped.computeIfAbsent(date, d -> {
+                TimetableDayDTO dto = new TimetableDayDTO();
+                dto.setExamDate(d);
+                dto.setDayName(d.getDayOfWeek().getDisplayName(java.time.format.TextStyle.FULL, Locale.ENGLISH));
+                dto.setSubjects(new ArrayList<>());
+                return dto;
+            });
+
+            TimetableSubjectDTO subjectDTO = new TimetableSubjectDTO();
+            subjectDTO.setSubjectId(r.getSubjectId());
+
+            String subjectName = null;
+            if (r.getSubject() != null) {
+                subjectName = r.getSubject().getSubjectName();
+            } else if (r.getSubjectId() != null && subjectRepo != null) {
+                subjectName = subjectRepo.findById(r.getSubjectId())
+                        .map(s -> s.getSubjectName())
+                        .orElse(null);
+            }
+            subjectDTO.setSubjectName(subjectName);
+
+
+            subjectDTO.setStartTime(r.getStartTime() != null ? r.getStartTime().toString() : null);
+            subjectDTO.setEndTime(r.getEndTime() != null ? r.getEndTime().toString() : null);
+            subjectDTO.setRoomNumber(r.getRoomNumber());
+
+            grouped.get(date).getSubjects().add(subjectDTO);
+        }
+
+        return new ArrayList<>(grouped.values());
     }
+
+
 
     private void validateScheduleInput(ExamRecordDTO dto) {
         if (!examRepo.existsById(dto.getExamId()))

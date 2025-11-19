@@ -21,7 +21,8 @@ public interface ExamRecordRepository extends JpaRepository<ExamRecord, Long> {
 
     boolean existsByExamIdAndClassSectionIdAndSubjectIdAndStudentId(String examId, String classSectionId, String subjectId, String studentId);
 
-    Collection<Object> findByExamIdAndClassSectionId(String examId, String classSectionId);
 
     Optional<ExamRecord> findByExamIdAndStudentIdAndSubjectId(String examId, String studentId, String subjectId);
+
+    List<ExamRecord> findByExamIdAndClassSectionId(String examId, String classSectionId);
 }

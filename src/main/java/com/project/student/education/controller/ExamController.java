@@ -56,11 +56,12 @@ public class ExamController {
     }
 
     @GetMapping("/{examId}/timetable/{classSectionId}")
-    public ResponseEntity<List<ExamRecordDTO>> getTimetable(
+    public ResponseEntity<List<TimetableDayDTO>> getTimetable(
             @PathVariable String examId,
             @PathVariable String classSectionId
     ) {
-        return ResponseEntity.ok(schedulingService.getTimetable(examId, classSectionId));
+        List<TimetableDayDTO>examRecordDTOS=schedulingService.getTimetable(examId,classSectionId);
+        return ResponseEntity.ok(examRecordDTOS);
     }
     @PutMapping("/enter-marks/{subjectId}")
     public ResponseEntity<SubjectMarksEntryRequest> enterMarks(@RequestBody SubjectMarksEntryRequest dto,@PathVariable String subjectId) {

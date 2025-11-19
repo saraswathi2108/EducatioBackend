@@ -16,4 +16,6 @@ public class TeacherDTO {
     private String gender;
     private int experience;
     private String address;
+    private String password;
+
 }
