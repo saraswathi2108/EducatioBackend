@@ -19,8 +19,7 @@ public class ExamMaster {
     @Column(nullable = false)
     private String examName;
 
-    @Column(nullable = false)
-    private String examType;
+
 
     private String academicYear;
 
@@ -30,7 +29,6 @@ public class ExamMaster {
     @Enumerated(EnumType.STRING)
     private ExamStatus status;
 
-    private String weightageJson;
 
     private String createdBy;
     private LocalDateTime createdAt;

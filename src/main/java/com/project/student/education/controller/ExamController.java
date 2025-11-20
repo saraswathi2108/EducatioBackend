@@ -72,8 +72,12 @@ public class ExamController {
 //    @GetMapping("result/{studentId}")
 //    public ResponseEntity<Stu>
 //
-
-
+//
+    @PostMapping("schedule-comprehensive")
+    public ResponseEntity<List<ExamRecordDTO>> scheduleComprehensive(@RequestBody ComprehensiveScheduleRequest req){
+        List<ExamRecordDTO>examRecordDTOS=schedulingService.scheduleComprehensive(req);
+        return ResponseEntity.ok(examRecordDTOS);
+    }
 
 
 }

@@ -10,19 +10,12 @@ import java.util.List;
 public class BulkScheduleRequest {
 
     private String examId;
-    private String classSectionId;
+    private List<String> classSectionId;
     private String subjectId;
 
     private LocalDate examDate;
     private LocalTime startTime;
     private LocalTime endTime;
 
-    private String roomNumber;
-    private String invigilatorId;
 
-    private Double maxMarks;
-    private Double passMarks;
-
-    // optional — if null, fetch all students in class
-    private List<String> studentIds;
 }

@@ -10,7 +10,7 @@ public class ExamMasterDTO {
 
     private String examId;
     private String examName;
-    private String examType;
+
     private String academicYear;
 
     private LocalDate startDate;
@@ -18,7 +18,7 @@ public class ExamMasterDTO {
 
     private String status;
 
-    private String weightageJson;
+
 
     private String createdBy;
     private LocalDateTime createdAt;

@@ -19,4 +19,6 @@ public interface TimetableRepository extends JpaRepository<Timetable, String > {
     boolean existsByTeacher_TeacherIdAndDayAndStartTimeAndEndTime(String teacherId, String day, String startTime, String endTime);
 
     List<Timetable> findByClassSection_ClassSectionId(String classSectionId);
+
+    List<Timetable> findByTeacher_TeacherIdOrderByDayAscStartTimeAsc(String teacherId);
 }

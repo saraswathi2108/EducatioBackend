@@ -23,9 +23,9 @@ public class CreateTimetableRequest {
     public static class PeriodRequest {
 
         private String day;
-        private String subjectId;     // SUB2025002
-        private String teacherId;     // TCH2025001
-        private String startTime;     // "09:00"
-        private String endTime;       // "09:45"
+        private String subjectId;
+        private String teacherId;
+        private String startTime;
+        private String endTime;
     }
 }

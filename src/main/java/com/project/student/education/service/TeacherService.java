@@ -2,13 +2,12 @@ package com.project.student.education.service;
 
 import com.project.student.education.DTO.ClassSectionMiniDTO;
 import com.project.student.education.DTO.TeacherDTO;
-import com.project.student.education.entity.ClassSection;
-import com.project.student.education.entity.IdGenerator;
-import com.project.student.education.entity.Teacher;
-import com.project.student.education.entity.User;
+import com.project.student.education.DTO.TeacherWeeklyTimetableDTO;
+import com.project.student.education.entity.*;
 import com.project.student.education.enums.Role;
 import com.project.student.education.repository.ClassSectionRepository;
 import com.project.student.education.repository.TeacherRepository;
+import com.project.student.education.repository.TimetableRepository;
 import com.project.student.education.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -16,7 +15,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
-import java.util.List;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,6 +31,7 @@ public class TeacherService {
     private final PasswordEncoder passwordEncoder;
     private final ModelMapper modelMapper;
     private final ClassSectionRepository classSectionRepository;
+    private final TimetableRepository timetableRepository;
 
     public TeacherDTO addTeacher(TeacherDTO dto) {
         if (teacherRepository.existsByEmail(dto.getEmail())) {
@@ -156,5 +159,137 @@ public class TeacherService {
     }
 
 
+    public TeacherWeeklyTimetableDTO getTeacherWeeklyTimetable(String teacherId, LocalDate weekReference) {
 
+        Teacher teacher = teacherRepository.findById(teacherId)
+                .orElseThrow(() -> new RuntimeException("Teacher not found"));
+
+        List<Timetable> list = timetableRepository
+                .findByTeacher_TeacherIdOrderByDayAscStartTimeAsc(teacherId);
+
+        Map<String, LocalDate> weekDates = getWeekDates(weekReference);
+
+        Map<String, List<Timetable>> grouped = list.stream()
+                .collect(Collectors.groupingBy(Timetable::getDay, LinkedHashMap::new, Collectors.toList()));
+
+        List<TeacherWeeklyTimetableDTO.DayEntry> weekly = new ArrayList<>();
+
+        for (String dayName : List.of(
+                "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY",
+                "FRIDAY", "SATURDAY"
+        )) {
+
+            LocalDate date = weekDates.get(dayName);
+
+            List<Timetable> periods = grouped.getOrDefault(dayName, Collections.emptyList());
+
+            List<TeacherWeeklyTimetableDTO.Period> periodDTOs = periods.stream()
+                    .sorted(Comparator.comparing(Timetable::getStartTime))
+                    .map(t -> TeacherWeeklyTimetableDTO.Period.builder()
+                            .date(date.toString())
+                            .classSectionId(t.getClassSection().getClassSectionId())
+                            .className(t.getClassSection().getClassName())
+                            .section(t.getClassSection().getSection())
+                            .subjectId(t.getSubject().getSubjectId())
+                            .subjectName(t.getSubject().getSubjectName())
+                            .startTime(toAmPm(t.getStartTime()))
+                            .endTime(toAmPm(t.getEndTime()))
+                            .build()
+                    ).toList();
+
+            weekly.add(
+                    TeacherWeeklyTimetableDTO.DayEntry.builder()
+                            .day(dayName)
+                            .date(date.toString())
+                            .periods(periodDTOs)
+                            .build()
+            );
+        }
+
+        return TeacherWeeklyTimetableDTO.builder()
+                .teacherId(teacher.getTeacherId())
+                .teacherName(teacher.getTeacherName())
+                .weeklyTimetable(weekly)
+                .build();
+    }
+
+    private Map<String, LocalDate> getWeekDates(LocalDate referenceDate) {
+        LocalDate monday = referenceDate.with(java.time.DayOfWeek.MONDAY);
+
+        Map<String, LocalDate> map = new LinkedHashMap<>();
+        map.put("MONDAY", monday);
+        map.put("TUESDAY", monday.plusDays(1));
+        map.put("WEDNESDAY", monday.plusDays(2));
+        map.put("THURSDAY", monday.plusDays(3));
+        map.put("FRIDAY", monday.plusDays(4));
+        map.put("SATURDAY", monday.plusDays(5));
+        map.put("SUNDAY", monday.plusDays(6));
+        return map;
+    }
+
+    private String toAmPm(String time) {
+        return LocalTime.parse(time)
+                .format(DateTimeFormatter.ofPattern("hh:mm a"));
+    }
+
+
+    public TeacherWeeklyTimetableDTO getClassTeacherTimetable(String teacherId, LocalDate weekStart) {
+
+        Teacher teacher = teacherRepository.findById(teacherId)
+                .orElseThrow(() -> new RuntimeException("Teacher not found"));
+
+        List<ClassSection> sections =
+                classSectionRepository.findByClassTeacher_TeacherId(teacherId);
+
+        if (sections == null || sections.isEmpty()) {
+            throw new RuntimeException("This teacher is not a class teacher");
+        }
+
+        ClassSection section = sections.get(0);
+
+        List<Timetable> timetable = timetableRepository
+                .findByClassSection_ClassSectionIdOrderByDayAscStartTimeAsc(
+                        section.getClassSectionId()
+                );
+
+        Map<String, LocalDate> weekDates = getWeekDates(weekStart);
+
+        List<TeacherWeeklyTimetableDTO.DayEntry> weekly = new ArrayList<>();
+
+        for (String day : List.of("MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY")) {
+
+            LocalDate date = weekDates.get(day);
+
+            List<Timetable> periods = timetable.stream()
+                    .filter(t -> t.getDay().equals(day))
+                    .toList();
+
+            List<TeacherWeeklyTimetableDTO.Period> periodList = periods.stream()
+                    .map(t -> TeacherWeeklyTimetableDTO.Period.builder()
+                            .date(date.toString())
+                            .classSectionId(section.getClassSectionId())
+                            .className(section.getClassName())
+                            .section(section.getSection())
+                            .subjectId(t.getSubject().getSubjectId())
+                            .subjectName(t.getSubject().getSubjectName())
+                            .startTime(toAmPm(t.getStartTime()))
+                            .endTime(toAmPm(t.getEndTime()))
+                            .build()
+                    ).toList();
+
+            weekly.add(
+                    TeacherWeeklyTimetableDTO.DayEntry.builder()
+                            .day(day)
+                            .date(date.toString())
+                            .periods(periodList)
+                            .build()
+            );
+        }
+
+        return TeacherWeeklyTimetableDTO.builder()
+                .teacherId(teacherId)
+                .teacherName(teacher.getTeacherName())
+                .weeklyTimetable(weekly)
+                .build();
+    }
 }

@@ -55,68 +55,61 @@ public class ExamSchedulingService {
     @Transactional
     public List<ExamRecordDTO> scheduleBulk(BulkScheduleRequest req) {
 
-        if (!examRepo.existsById(req.getExamId()))
+        if (!examRepo.existsById(req.getExamId())) {
             throw new EntityNotFoundException("Exam not found: " + req.getExamId());
+        }
 
-        if (!classRepo.existsById(req.getClassSectionId()))
-            throw new EntityNotFoundException("Class not found: " + req.getClassSectionId());
-
-        if (!subjectRepo.existsById(req.getSubjectId()))
+        if (!subjectRepo.existsById(req.getSubjectId())) {
             throw new EntityNotFoundException("Subject not found: " + req.getSubjectId());
-
-        List<String> studentIds = req.getStudentIds();
-        if (studentIds == null || studentIds.isEmpty()) {
-            studentIds = studentRepo.findStudentIdsByClassSectionId(req.getClassSectionId());
         }
 
-        if (studentIds == null || studentIds.isEmpty()) {
-            throw new EntityNotFoundException(
-                    "No students found for class section: " + req.getClassSectionId()
-            );
+        if (req.getClassSectionId() == null || req.getClassSectionId().isEmpty()) {
+            throw new IllegalArgumentException("At least one classSectionId is required.");
         }
-
 
         List<ExamRecordDTO> output = new ArrayList<>();
-        boolean atLeastOneInserted = false;
+        boolean inserted = false;
 
-        for (String studentId : studentIds) {
+        for (String classId : req.getClassSectionId()) {
 
-            boolean alreadyExists = recordRepo.existsByExamIdAndClassSectionIdAndSubjectIdAndStudentId(
-                    req.getExamId(), req.getClassSectionId(), req.getSubjectId(), studentId
-            );
-
-            if (alreadyExists) {
-                continue;
+            if (!classRepo.existsById(classId)) {
+                throw new EntityNotFoundException("Class not found: " + classId);
             }
 
-            atLeastOneInserted = true;
+            List<String> studentIds = studentRepo.findStudentIdsByClassSectionId(classId);
 
-            ExamRecord record = ExamRecord.builder()
-                    .examId(req.getExamId())
-                    .classSectionId(req.getClassSectionId())
-                    .subjectId(req.getSubjectId())
-                    .studentId(studentId)
-                    .examDate(req.getExamDate())
-                    .startTime(req.getStartTime())
-                    .endTime(req.getEndTime())
-                    .roomNumber(req.getRoomNumber())
-                    .invigilatorId(req.getInvigilatorId())
-                    .maxMarks(req.getMaxMarks())
-                    .passMarks(req.getPassMarks())
-                    .status(RecordStatus.SCHEDULED.name())
-                    .createdAt(LocalDateTime.now())
-                    .enteredBy(getCurrentUser())
-                    .build();
+            if (studentIds.isEmpty()) continue;
 
-            ExamRecord saved = recordRepo.save(record);
-            output.add(mapper.map(saved, ExamRecordDTO.class));
+            for (String studentId : studentIds) {
+
+                boolean exists = recordRepo.existsByExamIdAndClassSectionIdAndSubjectIdAndStudentId(
+                        req.getExamId(), classId, req.getSubjectId(), studentId
+                );
+
+                if (exists) continue;
+
+                inserted = true;
+
+                ExamRecord record = ExamRecord.builder()
+                        .examId(req.getExamId())
+                        .classSectionId(classId)
+                        .subjectId(req.getSubjectId())
+                        .studentId(studentId)
+                        .examDate(req.getExamDate())
+                        .startTime(req.getStartTime())
+                        .endTime(req.getEndTime())
+                        .status(RecordStatus.SCHEDULED.name())
+                        .createdAt(LocalDateTime.now())
+                        .enteredBy(getCurrentUser())
+                        .build();
+
+                ExamRecord saved = recordRepo.save(record);
+                output.add(mapper.map(saved, ExamRecordDTO.class));
+            }
         }
 
-        if (!atLeastOneInserted) {
-            throw new IllegalStateException(
-                    "Exam schedule already exists for ALL students of this class for subject: "
-                            + req.getSubjectId()
-            );
+        if (!inserted) {
+            throw new IllegalStateException("Exam schedule already exists for all selected classes.");
         }
 
         return output;
@@ -224,4 +217,77 @@ public class ExamSchedulingService {
 
         return request;
     }
+
+    @Transactional
+    public List<ExamRecordDTO> scheduleComprehensive(ComprehensiveScheduleRequest req) {
+
+        if (!examRepo.existsById(req.getExamId())) {
+            throw new EntityNotFoundException("Exam not found: " + req.getExamId());
+        }
+
+        if (req.getClassSectionIds() == null || req.getClassSectionIds().isEmpty()) {
+            throw new IllegalArgumentException("At least one classSectionId is required.");
+        }
+
+        if (req.getSchedules() == null || req.getSchedules().isEmpty()) {
+            throw new IllegalArgumentException("At least one schedule is required.");
+        }
+
+        List<ExamRecordDTO> output = new ArrayList<>();
+        boolean inserted = false;
+
+        for (String classId : req.getClassSectionIds()) {
+
+            if (!classRepo.existsById(classId)) {
+                throw new EntityNotFoundException("Class not found: " + classId);
+            }
+
+            List<String> studentIds = studentRepo.findStudentIdsByClassSectionId(classId);
+            if (studentIds.isEmpty()) continue;
+
+            for (ComprehensiveScheduleRequest.ScheduleEntry entry : req.getSchedules()) {
+
+                if (!subjectRepo.existsById(entry.getSubjectId())) {
+                    throw new EntityNotFoundException("Subject not found: " + entry.getSubjectId());
+                }
+
+                for (String studentId : studentIds) {
+
+                    boolean exists = recordRepo.existsByExamIdAndClassSectionIdAndSubjectIdAndStudentId(
+                            req.getExamId(),
+                            classId,
+                            entry.getSubjectId(),
+                            studentId
+                    );
+
+                    if (exists) continue;
+
+                    inserted = true;
+
+                    ExamRecord record = ExamRecord.builder()
+                            .examId(req.getExamId())
+                            .classSectionId(classId)
+                            .subjectId(entry.getSubjectId())
+                            .studentId(studentId)
+                            .examDate(entry.getExamDate())
+                            .startTime(entry.getStartTime())
+                            .endTime(entry.getEndTime())
+                            .status(RecordStatus.SCHEDULED.name())
+                            .createdAt(LocalDateTime.now())
+                            .enteredBy(getCurrentUser())
+                            .build();
+
+                    ExamRecord saved = recordRepo.save(record);
+                    output.add(mapper.map(saved, ExamRecordDTO.class));
+                }
+            }
+        }
+
+        if (!inserted) {
+            throw new IllegalStateException("All exam schedules already exist.");
+        }
+
+        return output;
+    }
+
 }
