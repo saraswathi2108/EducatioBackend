@@ -6,6 +6,8 @@ import com.project.student.education.service.AttendanceService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -44,5 +46,16 @@ public class AttendanceController {
                 attendanceService.getAttendanceByStudent(studentId, year, month)
         );
     }
+    @GetMapping("/class/{classSectionId}/date/{date}")
+    public ResponseEntity<List<Map<String, Object>>> getClassAttendanceForDate(
+            @PathVariable String classSectionId,
+            @PathVariable String date
+    ) {
+        LocalDate parsedDate = LocalDate.parse(date);
+        return ResponseEntity.ok(
+                attendanceService.getClassAttendanceForDate(classSectionId, parsedDate)
+        );
+    }
+
 
 }

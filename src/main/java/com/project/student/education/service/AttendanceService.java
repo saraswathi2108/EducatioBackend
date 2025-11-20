@@ -160,4 +160,58 @@ public class AttendanceService {
                 .dailyRecords(dailyList)
                 .build();
     }
+
+    public List<Map<String, Object>> getClassAttendanceForDate(String classSectionId, LocalDate date) {
+
+        // Validate class
+        if (!classSectionRepository.existsById(classSectionId)) {
+            throw new RuntimeException("Class section not found: " + classSectionId);
+        }
+
+        // Get all students of this class
+        List<Student> students = studentRepository.findByClassSection_ClassSectionId(classSectionId);
+
+        if (students.isEmpty()) {
+            throw new RuntimeException("No students found for class " + classSectionId);
+        }
+
+        // Fetch attendance entries for this date for all students
+        List<StudentAttendance> attList =
+                attendanceRepository.findByClassSectionIdAndDate(classSectionId, date);
+
+        Map<String, String> attendanceMap = attList.stream()
+                .collect(Collectors.toMap(
+                        StudentAttendance::getStudentId,
+                        a -> a.getStatus().toUpperCase()
+                ));
+
+        // Check if holiday
+        boolean isSunday = date.getDayOfWeek() == DayOfWeek.SUNDAY;
+        boolean isHoliday = holidayRepository.existsByDate(date);
+
+        List<Map<String, Object>> response = new ArrayList<>();
+
+        for (Student s : students) {
+
+            String status;
+
+            if (isSunday || isHoliday) {
+                status = "HOLIDAY";
+            } else if (attendanceMap.containsKey(s.getStudentId())) {
+                status = attendanceMap.get(s.getStudentId());
+            } else {
+                status = "NOT_MARKED";
+            }
+
+            response.add(Map.of(
+                    "studentId", s.getStudentId(),
+                    "name", s.getFullName(),
+                    "status", status
+            ));
+        }
+
+        return response;
+    }
+
+
 }

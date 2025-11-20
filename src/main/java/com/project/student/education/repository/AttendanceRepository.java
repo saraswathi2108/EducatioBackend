@@ -12,4 +12,6 @@ public interface AttendanceRepository  extends JpaRepository<StudentAttendance, 
     boolean existsByClassSectionIdAndDate(String classSectionId, LocalDate date);
 
     List<StudentAttendance> findByStudentIdAndDateBetween(String studentId, LocalDate start, LocalDate end);
+
+    List<StudentAttendance> findByClassSectionIdAndDate(String classSectionId, LocalDate date);
 }
