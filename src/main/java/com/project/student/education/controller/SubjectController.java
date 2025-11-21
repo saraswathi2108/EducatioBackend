@@ -71,6 +71,7 @@ public class SubjectController {
         return ResponseEntity.ok(subjectService.assignSubjects(request));
     }
 
+
     @PutMapping("/assign")
     public ResponseEntity<List<ClassSubjectMappingDTO>> updateAssignSubjectsToClass(
             @RequestBody ClassSubjectAssignRequest request) {

@@ -14,4 +14,5 @@ public interface ClassSectionRepository extends JpaRepository<ClassSection, Stri
     Optional<ClassSection> findByClassNameAndAcademicYear(String className, String academicYear);
 
 
+    Optional<ClassSection> findByClassNameAndSectionAndAcademicYear(String className, String section, String academicYear);
 }

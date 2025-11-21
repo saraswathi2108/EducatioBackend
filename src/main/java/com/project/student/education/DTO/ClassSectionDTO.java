@@ -2,6 +2,8 @@ package com.project.student.education.DTO;
 
 import lombok.*;
 
+import java.util.List;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,4 +18,5 @@ public class ClassSectionDTO {
     private String classTeacherName;
     private Integer capacity;
     private Integer currentStrength;
+    private List<String> subjectIds;
 }

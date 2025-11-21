@@ -3,7 +3,6 @@ package com.project.student.education.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.Collection;
 
 @Entity
 @Table(name = "class_subject_mapping",

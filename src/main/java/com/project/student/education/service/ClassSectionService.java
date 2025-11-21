@@ -2,14 +2,8 @@ package com.project.student.education.service;
 
 import com.project.student.education.DTO.ClassSectionDTO;
 import com.project.student.education.DTO.StudentDTO;
-import com.project.student.education.entity.ClassSection;
-import com.project.student.education.entity.IdGenerator;
-import com.project.student.education.entity.Student;
-import com.project.student.education.entity.Teacher;
-import com.project.student.education.repository.ClassSectionRepository;
-import com.project.student.education.repository.ClassSubjectMappingRepository;
-import com.project.student.education.repository.StudentRepository;
-import com.project.student.education.repository.TeacherRepository;
+import com.project.student.education.entity.*;
+import com.project.student.education.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
@@ -27,37 +21,65 @@ public class ClassSectionService {
     private final ModelMapper modelMapper;
     private final StudentRepository studentRepository;
     private final ClassSubjectMappingRepository classSubjectMappingRepository;
+    private final SubjectRepository subjectRepository;
 
     public ClassSectionDTO createClassSection(ClassSectionDTO dto) {
 
-        classSectionRepository.findByClassNameAndAcademicYear(
-                dto.getClassName(), dto.getAcademicYear()
-        ).ifPresent(existing -> {
-            throw new RuntimeException("Class section already exists for this academic year!");
-        });
+        // Duplicate check
+        classSectionRepository.findByClassNameAndSectionAndAcademicYear(
+                        dto.getClassName(), dto.getSection(), dto.getAcademicYear()
+                )
+                .ifPresent(existing -> {
+                    throw new RuntimeException("Class section already exists for this academic year!");
+                });
 
+        // Generate class section ID
         String id = idGenerator.generateId("CLS");
 
-        Teacher teacher = null;
+        // Fetch class teacher
+        Teacher classTeacher = null;
+
         if (dto.getClassTeacherId() != null) {
-            teacher = teacherRepository.findById(dto.getClassTeacherId())
-                    .orElseThrow(() -> new RuntimeException("Teacher not found with ID: " + dto.getClassTeacherId()));
+            classTeacher = teacherRepository.findById(dto.getClassTeacherId())
+                    .orElseThrow(() ->
+                            new RuntimeException("Teacher not found with ID: " + dto.getClassTeacherId()));
         }
 
+// Create Class Section
         ClassSection classSection = ClassSection.builder()
                 .classSectionId(id)
                 .className(dto.getClassName())
                 .section(dto.getSection())
                 .academicYear(dto.getAcademicYear())
-                .classTeacher(teacher)
+                .classTeacher(classTeacher)
                 .capacity(dto.getCapacity())
                 .currentStrength(dto.getCurrentStrength())
                 .build();
 
-        ClassSection saved = classSectionRepository.save(classSection);
+        ClassSection savedClass = classSectionRepository.save(classSection);
 
-        return mapToDTO(saved);
+        if (dto.getSubjectIds() != null) {
+            for (String subjectId : dto.getSubjectIds()) {
+
+                Subject subject = subjectRepository.findById(subjectId)
+                        .orElseThrow(() -> new RuntimeException("Subject not found: " + subjectId));
+
+                String mappingId = idGenerator.generateId("CSM");
+
+                ClassSubjectMapping mapping = ClassSubjectMapping.builder()
+                        .id(mappingId)
+                        .classSection(savedClass)
+                        .subject(subject)
+                        .teacher(null)
+                        .build();
+
+                classSubjectMappingRepository.save(mapping);
+            }
+        }
+
+        return mapToDTO(savedClass);
     }
+
 
     public List<ClassSectionDTO> getAllClassSections() {
         return classSectionRepository.findAll()
@@ -100,6 +122,7 @@ public class ClassSectionService {
 
     @Transactional
     public ClassSectionDTO updateClassSection(String id, ClassSectionDTO dto) {
+
         ClassSection existing = classSectionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Class section not found"));
 
@@ -108,18 +131,36 @@ public class ClassSectionService {
         existing.setAcademicYear(dto.getAcademicYear());
         existing.setCapacity(dto.getCapacity());
         existing.setCurrentStrength(dto.getCurrentStrength());
-
         if (dto.getClassTeacherId() != null) {
             Teacher teacher = teacherRepository.findById(dto.getClassTeacherId())
-                    .orElseThrow(() -> new RuntimeException("Teacher not found with ID: " + dto.getClassTeacherId()));
+                    .orElseThrow(() ->
+                            new RuntimeException("Teacher not found: " + dto.getClassTeacherId()));
             existing.setClassTeacher(teacher);
         } else {
             existing.setClassTeacher(null);
+        }
+        classSubjectMappingRepository.deleteByClassSection_ClassSectionId(id);
+        if (dto.getSubjectIds() != null && !dto.getSubjectIds().isEmpty()) {
+            for (String subjectId : dto.getSubjectIds()) {
+
+                Subject subject = subjectRepository.findById(subjectId)
+                        .orElseThrow(() -> new RuntimeException("Subject not found: " + subjectId));
+
+                ClassSubjectMapping mapping = ClassSubjectMapping.builder()
+                        .id(idGenerator.generateId("CSM"))
+                        .classSection(existing)
+                        .subject(subject)
+                        .teacher(null)
+                        .build();
+
+                classSubjectMappingRepository.save(mapping);
+            }
         }
 
         ClassSection saved = classSectionRepository.save(existing);
         return mapToDTO(saved);
     }
+
 
     private ClassSectionDTO mapToDTO(ClassSection section) {
         ClassSectionDTO dto = modelMapper.map(section, ClassSectionDTO.class);
@@ -128,6 +169,15 @@ public class ClassSectionService {
             dto.setClassTeacherId(section.getClassTeacher().getTeacherId());
             dto.setClassTeacherName(section.getClassTeacher().getTeacherName());
         }
+        List<ClassSubjectMapping> mappings =
+                classSubjectMappingRepository.findByClassSection_ClassSectionId(section.getClassSectionId());
+
+        List<String> subjectIds = mappings.stream()
+                .map(m -> m.getSubject().getSubjectId())
+                .toList();
+
+        dto.setSubjectIds(subjectIds);
+
 
         return dto;
     }
@@ -156,10 +206,14 @@ public class ClassSectionService {
 
     @Transactional
     public ClassSectionDTO deleteClassSection(String classSectionId) {
-        ClassSection classSection=classSectionRepository.findById(classSectionId)
+
+        ClassSection classSection = classSectionRepository.findById(classSectionId)
                 .orElseThrow(() -> new RuntimeException("Class section not found"));
-        classSubjectMappingRepository.deleteByClassSection(classSection);
+
+        classSubjectMappingRepository.deleteByClassSection_ClassSectionId(classSectionId);
         classSectionRepository.delete(classSection);
+
         return mapToDTO(classSection);
     }
+
 }
